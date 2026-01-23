@@ -82,39 +82,57 @@ def parse_json(
 
     return final_result
 
+def rec_search(path: Path):
+    if path.is_dir():
+        for i in path.iterdir():
+            rec_search(i)
+    else:
+        if path.suffix == ".json":
+            res.append(
+                {
+                    "annotation": path,
+                    "data": path.parent.parent,
+                }
+            )
+
+
 
 if __name__ == "__main__":
-    result_list = parse_json(
-        "D:/All aug/blokhina_segm/Иванкина 2 v1/annotations-18-26-at-2025-05-13T09_21_53.json",
-        "D:/All aug/blokhina/data",
-    )
-    builder = CocoBuilder(
-        categories={
-            "Злокачественные образование": 1,
-            "Доброкачественное образование": 2,
-            "Нарушение архитектоники": 3,
-            "Доброкачественные кальцинаты": 4,
-            "Злокачественные кальцинаты": 5,
-            "Утолщение кожи": 6,
-        }
-    )
-    for item in result_list:
-        builder.add_item(
-            BuilderItem(
-                file_name=item["file_name"],
-                width=item["width"],
-                height=item["height"],
-                metadata={
-                    "view": item["view"],
-                    "side": item["side"],
-                    "annotation_creator": item["annotation_creator"],
-                    "created_at": item["created_at"],
-                },
-                annotations=[
-                    ItemAnnotation(category=ann["class"], segmentation=ann["points"])
-                    for ann in item["annotation"]
-                ],
-            )
+    res = []
+    rec_search(Path("/home/ekarpulevich/new_mammo_data/mammoannotate/"))
+
+    for i in res:
+        result_list = parse_json(
+            "/home/ekarpulevich/new_mammo_data/mammoannotate/ivankina1/Иванкина1 v1/annotations-13-16-at-2025-11-12T07:11:58.json",
+            "/home/ekarpulevich/new_mammo_data/mammoannotate/ivankina1/",
         )
-    dataset = builder.build_dataset()
-    dataset.save_json("C:/Users/zemnu/PycharmProjects/cocotools/test.json")
+        builder = CocoBuilder(
+            categories={
+                "Злокачественные образование": 1,
+                "Доброкачественное образование": 2,
+                "Нарушение архитектоники": 3,
+                "Доброкачественные кальцинаты": 4,
+                "Злокачественные кальцинаты": 5,
+                "Утолщение кожи": 6,
+            }
+        )
+        for item in result_list:
+            builder.add_item(
+                BuilderItem(
+                    file_name=item["file_name"],
+                    width=item["width"],
+                    height=item["height"],
+                    metadata={
+                        "view": item["view"],
+                        "side": item["side"],
+                        "annotation_creator": item["annotation_creator"],
+                        "created_at": item["created_at"],
+                    },
+                    annotations=[
+                        ItemAnnotation(category=ann["class"], segmentation=ann["points"])
+                        for ann in item["annotation"]
+                    ],
+                )
+            )
+        dataset = builder.build_dataset()
+        dataset.save_json(i["data"]/ f"coco_{i["annotation"].name}")
