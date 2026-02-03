@@ -4,7 +4,10 @@ from typing import List, Dict, Any, Optional
 
 import pydicom
 
-from cocotools.coco_builder import CocoBuilder, BuilderItem, ItemAnnotation
+from cocotools.coco_builder import CocoBuilder
+from transliterate import translit
+
+from cocotools.coco_item import CocoItem, ItemAnnotation
 
 ANNOTATION_TYPE = "mgdcmfreehandlabels"
 
@@ -91,7 +94,7 @@ def rec_search(path: Path):
             res.append(
                 {
                     "annotation": path,
-                    "data": path.parent.parent,
+                    "data": Path("/home/ekarpulevich/mammo_data/data"),
                 }
             )
 
@@ -99,12 +102,12 @@ def rec_search(path: Path):
 
 if __name__ == "__main__":
     res = []
-    rec_search(Path("/home/ekarpulevich/new_mammo_data/mammoannotate/"))
+    rec_search(Path("/home/ekarpulevich/mammo_data/"))
 
     for i in res:
         result_list = parse_json(
-            "/home/ekarpulevich/new_mammo_data/mammoannotate/ivankina1/Иванкина1 v1/annotations-13-16-at-2025-11-12T07:11:58.json",
-            "/home/ekarpulevich/new_mammo_data/mammoannotate/ivankina1/",
+            str(i["annotation"]),
+            str(i["data"]),
         )
         builder = CocoBuilder(
             categories={
@@ -118,7 +121,7 @@ if __name__ == "__main__":
         )
         for item in result_list:
             builder.add_item(
-                BuilderItem(
+                CocoItem(
                     file_name=item["file_name"],
                     width=item["width"],
                     height=item["height"],
@@ -135,4 +138,4 @@ if __name__ == "__main__":
                 )
             )
         dataset = builder.build_dataset()
-        dataset.save_json(i["data"]/ f"coco_{i["annotation"].name}")
+        dataset.save_json(str(Path("/home/ekarpulevich/mammo_data/annotation") / f"coco_{translit(i["annotation"].parent.stem.replace(" ", "_"), language_code='ru', reversed=True)}.json"))
