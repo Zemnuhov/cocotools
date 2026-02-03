@@ -1,27 +1,12 @@
-import dataclasses
-from dataclasses import field
 from typing import List, Union, Dict, Any
 
 import shapely
 
+from cocotools.coco_item import CocoItem
 from cocotools.models.annotation import CocoAnnotation
 from cocotools.models.category import CocoCategory
 from cocotools.models.dataset import CocoDataset
 from cocotools.models.image import CocoImage
-
-@dataclasses.dataclass
-class ItemAnnotation:
-    category: Union[int, str]
-    segmentation: Union[List[List[float]], Dict[str, Any]] = field(default_factory=list)
-    metadata: dict = field(default_factory=dict)
-
-@dataclasses.dataclass
-class BuilderItem:
-    file_name: str
-    width: int
-    height: int
-    annotations: List[ItemAnnotation]
-    metadata: dict = field(default_factory=dict)
 
 
 class CocoBuilder:
@@ -61,7 +46,7 @@ class CocoBuilder:
         polygon = shapely.Polygon(segmentation)
         return polygon.area
 
-    def add_item(self, item: BuilderItem):
+    def add_item(self, item: CocoItem):
         image = CocoImage(
             id=self.current_image_id,
             file_name=item.file_name,
