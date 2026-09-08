@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
+import numpy as np
 import pydicom
 
 from cocotools.coco_builder import CocoBuilder
@@ -18,11 +19,11 @@ def get_dicom_metadata(
     datasets = []
     for dic_path_str in dicom_dict:
         raw_path = Path(dic_path_str)
-        full_path = data_path / raw_path.parent.stem / raw_path.name
+        full_path = data_path.joinpath(*raw_path.parts[3:])
 
         if full_path.exists():
             ds = pydicom.dcmread(full_path, stop_before_pixels=True)
-            datasets.append(ds)
+            datasets.append({"dicom": ds, "filename": Path().joinpath(*raw_path.parts[3:])})
     return datasets
 
 
@@ -63,13 +64,16 @@ def parse_json(
             continue
         case_id = data_part.get("case", "unknown")
         info_by_side = {}
-        for ds in dicoms:
+        for data in dicoms:
+            ds = data["dicom"]
+            filename = data["filename"]
             view = getattr(ds, "ViewPosition", "Unknown")
             side = getattr(ds, "ImageLaterality", "Unknown")
+            pixel_spacing = getattr(ds, "PixelSpacing", None)
             key = f"{view}_{side}"
 
             info_by_side[key] = {
-                "file_name": f"{case_id}/{Path(ds.filename).name}",
+                "file_name": f"{filename}",
                 "view": view,
                 "side": side,
                 "width": getattr(ds, "Rows", 0),
@@ -77,6 +81,7 @@ def parse_json(
                 "annotation_creator": current_ann.get("created_username"),
                 "created_at": current_ann.get("created_at"),
                 "annotation": [],
+                "pixel_spacing": pixel_spacing,
             }
 
         process_annotations(current_ann.get("result", []), info_by_side)
@@ -94,7 +99,7 @@ def rec_search(path: Path):
             res.append(
                 {
                     "annotation": path,
-                    "data": Path("/home/ekarpulevich/mammo_data/data"),
+                    "data": Path("/home/karpulevich_z/mammoannotate_files"),
                 }
             )
 
@@ -102,22 +107,21 @@ def rec_search(path: Path):
 
 if __name__ == "__main__":
     res = []
-    rec_search(Path("/home/ekarpulevich/mammo_data/"))
-
+    rec_search(Path("/home/karpulevich_z/Segmentation_markup_02_09_2026"))
+    builder = CocoBuilder(
+        categories={
+            "Злокачественные образование": 1,
+            "Доброкачественное образование": 2,
+            "Нарушение архитектоники": 3,
+            "Доброкачественные кальцинаты": 4,
+            "Злокачественные кальцинаты": 5,
+            "Утолщение кожи": 6,
+        }
+    )
     for i in res:
         result_list = parse_json(
             str(i["annotation"]),
             str(i["data"]),
-        )
-        builder = CocoBuilder(
-            categories={
-                "Злокачественные образование": 1,
-                "Доброкачественное образование": 2,
-                "Нарушение архитектоники": 3,
-                "Доброкачественные кальцинаты": 4,
-                "Злокачественные кальцинаты": 5,
-                "Утолщение кожи": 6,
-            }
         )
         for item in result_list:
             builder.add_item(
@@ -132,10 +136,15 @@ if __name__ == "__main__":
                         "created_at": item["created_at"],
                     },
                     annotations=[
-                        ItemAnnotation(category=ann["class"], segmentation=ann["points"])
+                        ItemAnnotation(
+                            category=ann["class"],
+                            segmentation=(np.array(ann["points"])/float(item.get("pixel_spacing")[0])).tolist()
+                            if isinstance(item.get("pixel_spacing"), pydicom.multival.MultiValue)
+                            else ann["points"],
+                        )
                         for ann in item["annotation"]
                     ],
                 )
             )
-        dataset = builder.build_dataset()
-        dataset.save_json(str(Path("/home/ekarpulevich/mammo_data/annotation") / f"coco_{translit(i["annotation"].parent.stem.replace(" ", "_"), language_code='ru', reversed=True)}.json"))
+    dataset = builder.build_dataset()
+    dataset.save_json("/home/karpulevich_z/mammo_data_new/annotation/coco_Segmentation_markup_02_09_2026.json")
