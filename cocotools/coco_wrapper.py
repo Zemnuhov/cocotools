@@ -1,6 +1,7 @@
-from typing import Union, List
+from typing import Union, List, Optional
 
 from cocotools.coco_item import CocoItem, ItemAnnotation
+from cocotools.models import annotation
 from cocotools.models.annotation import CocoAnnotation
 from cocotools.models.dataset import CocoDataset
 from cocotools.models.image import CocoImage
@@ -36,16 +37,20 @@ class COCOWrapper:
             metadata=image.metadata
         )
 
-    def get_img_by_id(self, img_id: int) -> CocoImage:
+    def get_img_by_id(self, img_id: int) -> Optional[CocoImage]:
         return next((i for i in self.dataset.images if i.id == img_id), None)
 
     def get_annotation_by_img(self, img: Union[CocoImage, int]):
         return self._annotation_by_img_id[img.id if isinstance(img, CocoImage) else img]
 
-    def get_img_by_filename(self, file_name: str) -> CocoImage:
+    def get_img_by_file_name(self, file_name: str) -> Optional[CocoImage]:
         return next((i for i in self.dataset.images if i.file_name == file_name), None)
 
-    def remove_image_by_id(self, img_id: int) -> CocoDataset:
-        image = self.get_img_by_id(img_id)
-        self.dataset.images.remove(image)
+    def remove_image_by_id(self, img_id: int):
+        removed_annotation=self._annotation_by_img_id[img_id]
+        removed_image = self.get_img_by_id(img_id)
+        self._annotation_by_img_id.pop(img_id)
+        self.dataset.images.remove(removed_image)
+        for ann in removed_annotation:
+            self.dataset.annotations.remove(ann)
         return self.dataset
