@@ -49,6 +49,7 @@ class COCOWrapper:
     def remove_image_by_id(self, img_id: int):
         removed_annotation=self._annotation_by_img_id[img_id]
         removed_image = self.get_img_by_id(img_id)
+        self._annotation_by_img_id.pop(img_id)
         self.dataset.images.remove(removed_image)
         for ann in removed_annotation:
             self.dataset.annotations.remove(ann)
